@@ -90,12 +90,22 @@ def get_intent_and_response(user_message):
     """
     logging.info('get_intent_and_response: Анализ намерения пользователя.')
     try:
-        intents_list = ", ".join(RESPONSES.keys())
         prompt = (
-            f"Являясь помощником, оцени следующее сообщение пользователя: '{user_message}'. "
-            f"Определи основное намерение из списка: {intents_list}, {INTENT_GREETINGS}, {INTENT_OTHER}. "
-            f"Выведи только одно ключевое слово, соответствующее намерению, без объяснений. "
-            f"Например: ВИЗИТ."
+            f"Я - помощник, который определяет намерение клиента на основе его сообщения. "
+            f"Я должен определить основное намерение из строго заданного списка и вывести только одно ключевое слово. "
+            f"Список намерений: {', '.join(RESPONSES.keys())}, {INTENT_GREETINGS}, {INTENT_OTHER}. "
+            f"\n\n"
+            f"Примеры:\n"
+            f"Сообщение: Привет, подскажите, а у вас есть скидки?\n"
+            f"Намерение: СКИДКА\n"
+            f"Сообщение: Какой уход нужен за растением?\n"
+            f"Намерение: УХОД\n"
+            f"Сообщение: Как мне к вам добраться?\n"
+            f"Намерение: ВИЗИТ\n"
+            f"Сообщение: у вас есть доставка?\n"
+            f"Намерение: ДОСТАВКА\n"
+            f"Сообщение: {user_message}\n"
+            f"Намерение:"
         )
 
         response = client.completions.create(
@@ -104,7 +114,7 @@ def get_intent_and_response(user_message):
             max_tokens=20,
             n=1,
             stop=None,
-            temperature=0.5
+            temperature=0.0
         )
 
         intent = response.choices[0].text.strip().upper()
@@ -112,10 +122,8 @@ def get_intent_and_response(user_message):
 
         if intent in RESPONSES:
             return RESPONSES[intent]
-        elif intent == INTENT_GREETINGS:
-            return BOT_CANT_ANSWER_MESSAGE
-        else:
-            return BOT_CANT_ANSWER_MESSAGE
+
+        return BOT_CANT_ANSWER_MESSAGE
 
     except openai.OpenAIError as e:
         logging.error(f'Ошибка OpenAI API: {e}')
