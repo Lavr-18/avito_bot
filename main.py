@@ -90,22 +90,12 @@ def get_intent_and_response(user_message):
     """
     logging.info('get_intent_and_response: Анализ намерения пользователя.')
     try:
+        intents_list = ", ".join(RESPONSES.keys())
         prompt = (
-            f"Я - помощник, который определяет намерение клиента на основе его сообщения. "
-            f"Я должен определить основное намерение из строго заданного списка и вывести только одно ключевое слово. "
-            f"Список намерений: {', '.join(RESPONSES.keys())}, {INTENT_GREETINGS}, {INTENT_OTHER}. "
-            f"\n\n"
-            f"Примеры:\n"
-            f"Сообщение: Привет, подскажите, а у вас есть скидки?\n"
-            f"Намерение: СКИДКА\n"
-            f"Сообщение: Какой уход нужен за растением?\n"
-            f"Намерение: УХОД\n"
-            f"Сообщение: Как мне к вам добраться?\n"
-            f"Намерение: ВИЗИТ\n"
-            f"Сообщение: у вас есть доставка?\n"
-            f"Намерение: ДОСТАВКА\n"
-            f"Сообщение: {user_message}\n"
-            f"Намерение:"
+            f"Являясь помощником, оцени следующее сообщение пользователя: '{user_message}'. "
+            f"Определи основное намерение из списка: {intents_list}, {INTENT_GREETINGS}, {INTENT_OTHER}. "
+            f"Выведи только одно ключевое слово, соответствующее намерению, без объяснений. "
+            f"Например: ВИЗИТ."
         )
 
         response = client.completions.create(
@@ -114,7 +104,7 @@ def get_intent_and_response(user_message):
             max_tokens=20,
             n=1,
             stop=None,
-            temperature=0.0
+            temperature=0.5
         )
 
         intent = response.choices[0].text.strip().upper()
@@ -122,15 +112,15 @@ def get_intent_and_response(user_message):
 
         if intent in RESPONSES:
             return RESPONSES[intent]
-
-        return BOT_CANT_ANSWER_MESSAGE
+        else:
+            return None
 
     except openai.OpenAIError as e:
         logging.error(f'Ошибка OpenAI API: {e}')
-        return BOT_CANT_ANSWER_MESSAGE
+        return None
     except Exception as e:
         logging.error(f'Непредвиденная ошибка при работе с OpenAI: {e}')
-        return BOT_CANT_ANSWER_MESSAGE
+        return None
 
 
 def send_message(chat_id, headers, text):
@@ -274,7 +264,8 @@ def check_upcoming_and_answer():
                     if messages and "messages" in messages:
                         user_message_text = messages["messages"][0]["content"]["text"]
                         bot_response = get_intent_and_response(user_message_text)
-                        send_message(chat_id, headers, bot_response)
+                        if bot_response:
+                            send_message(chat_id, headers, bot_response)
         else:
             logging.info('Нет чатов, требующих внимания.')
     except Exception as e:
@@ -300,7 +291,7 @@ def main():
         except Exception as e:
             logging.error(f'Ошибка в основном цикле: {e}')
 
-        time.sleep(60)
+        time.sleep(20)
 
 
 if __name__ == "__main__":
