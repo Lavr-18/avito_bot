@@ -204,7 +204,7 @@ def check_chat(chat, headers):
         return False
 
     logging.info(f'check_chat: Обнаружено новое сообщение, требующее ответа в чате {chat_id}.')
-    logging.debug(f'check_chat: Текст последнего сообщения: {last_message["content"]["text"]}')
+    logging.info(f'check_chat: Текст последнего сообщения: {last_message["content"]["text"]}')
     return True
 
 
@@ -259,11 +259,13 @@ def check_upcoming_and_answer():
 
                     time.sleep(2)  # Задержка для последовательной отправки
 
-                    # Всегда отправляем второе сообщение с анализом намерения
+                    # Отправляем второе сообщение с анализом намерения, если оно определено
                     messages = get_chat_messages(chat_id, headers=headers)
                     if messages and "messages" in messages:
                         user_message_text = messages["messages"][0]["content"]["text"]
+                        logging.info(f"check_upcoming_and_answer: Сообщение пользователя: '{user_message_text}'")
                         bot_response = get_intent_and_response(user_message_text)
+                        logging.info(f"check_upcoming_and_answer: Бот определил ответ: '{bot_response}'")
                         if bot_response:
                             send_message(chat_id, headers, bot_response)
         else:
