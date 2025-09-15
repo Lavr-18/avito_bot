@@ -90,10 +90,15 @@ def get_intent_and_response(user_message):
     """
     logging.info('get_intent_and_response: Анализ намерения пользователя.')
     try:
-        intents_list = ", ".join(RESPONSES.keys())
+        # Обновленный промпт, который явно указывает модели
+        # отдавать приоритет конкретным намерениям над приветствиями
+        intents_for_prompt = ", ".join(
+            [intent for intent in RESPONSES.keys() if intent not in [INTENT_GREETINGS, INTENT_OTHER]]
+        )
         prompt = (
             f"Являясь помощником, оцени следующее сообщение пользователя: '{user_message}'. "
-            f"Определи основное намерение из списка: {intents_list}, {INTENT_GREETINGS}, {INTENT_OTHER}. "
+            f"Определи его основное намерение из списка: {intents_for_prompt}, {INTENT_GREETINGS}, {INTENT_OTHER}. "
+            f"Отдай приоритет бизнес-намерениям (таким как НАЛИЧИЕ, ЦЕНА, ДОСТАВКА) над приветствиями. "
             f"Выведи только одно ключевое слово, соответствующее намерению, без объяснений. "
             f"Например: ВИЗИТ."
         )
@@ -113,6 +118,7 @@ def get_intent_and_response(user_message):
         if intent in RESPONSES:
             return RESPONSES[intent]
         else:
+            # Возвращаем None, если не удалось определить конкретное намерение
             return None
 
     except openai.OpenAIError as e:
@@ -160,6 +166,17 @@ def get_chat_messages(chat_id, headers):
         return None
 
 
+def get_last_user_message(messages_data):
+    """
+    Находит последнее сообщение, отправленное пользователем (direction == 'in').
+    """
+    if messages_data and "messages" in messages_data:
+        for message in messages_data["messages"]:
+            if message["direction"] == "in" and "content" in message and "text" in message["content"]:
+                return message["content"]["text"]
+    return None
+
+
 def check_chat(chat, headers):
     """
     Функция проверяет чат по следующим критериям:
@@ -204,7 +221,7 @@ def check_chat(chat, headers):
         return False
 
     logging.info(f'check_chat: Обнаружено новое сообщение, требующее ответа в чате {chat_id}.')
-    logging.info(f'check_chat: Текст последнего сообщения: {last_message["content"]["text"]}')
+    logging.debug(f'check_chat: Текст последнего сообщения: {last_message["content"]["text"]}')
     return True
 
 
@@ -259,15 +276,22 @@ def check_upcoming_and_answer():
 
                     time.sleep(2)  # Задержка для последовательной отправки
 
-                    # Отправляем второе сообщение с анализом намерения, если оно определено
+                    # Находим последнее сообщение от пользователя
                     messages = get_chat_messages(chat_id, headers=headers)
-                    if messages and "messages" in messages:
-                        user_message_text = messages["messages"][0]["content"]["text"]
-                        logging.info(f"check_upcoming_and_answer: Сообщение пользователя: '{user_message_text}'")
+                    user_message_text = get_last_user_message(messages)
+
+                    # Если сообщение найдено, анализируем его
+                    if user_message_text:
+                        logging.info(f'Получено сообщение от клиента: "{user_message_text}"')
                         bot_response = get_intent_and_response(user_message_text)
-                        logging.info(f"check_upcoming_and_answer: Бот определил ответ: '{bot_response}'")
+
+                        # Новая проверка: отправляем второе сообщение, только если bot_response
+                        # не является None (т.е. намерение было успешно определено)
                         if bot_response:
+                            logging.info(f'Бот отвечает: "{bot_response}"')
                             send_message(chat_id, headers, bot_response)
+                        else:
+                            logging.info('Не удалось определить намерение. Второе сообщение не отправлено.')
         else:
             logging.info('Нет чатов, требующих внимания.')
     except Exception as e:
@@ -293,7 +317,7 @@ def main():
         except Exception as e:
             logging.error(f'Ошибка в основном цикле: {e}')
 
-        time.sleep(20)
+        time.sleep(30)
 
 
 if __name__ == "__main__":
