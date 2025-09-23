@@ -90,15 +90,13 @@ def get_intent_and_response(user_message):
     """
     logging.info('get_intent_and_response: Анализ намерения пользователя.')
     try:
-        # Обновленный промпт, который явно указывает модели
-        # отдавать приоритет конкретным намерениям над приветствиями
         intents_for_prompt = ", ".join(
             [intent for intent in RESPONSES.keys() if intent not in [INTENT_GREETINGS, INTENT_OTHER]]
         )
         prompt = (
             f"Являясь помощником, оцени следующее сообщение пользователя: '{user_message}'. "
             f"Определи его основное намерение из списка: {intents_for_prompt}, {INTENT_GREETINGS}, {INTENT_OTHER}. "
-            f"Отдай приоритет бизнес-намерениям (таким как НАЛИЧИЕ, ЦЕНА, ДОСТАВКА) над приветствиями. "
+            # Удалена строка с приоритетом.
             f"Выведи только одно ключевое слово, соответствующее намерению, без объяснений. "
             f"Например: ВИЗИТ."
         )
@@ -118,7 +116,6 @@ def get_intent_and_response(user_message):
         if intent in RESPONSES:
             return RESPONSES[intent]
         else:
-            # Возвращаем None, если не удалось определить конкретное намерение
             return None
 
     except openai.OpenAIError as e:
